@@ -63,31 +63,82 @@ class Thread1 implements Runnable {
 		try {
 			while(true) {
 				Socket s=new Socket(main.part1[0],main.port);
-				
+				//流准备
 				InputStream is=s.getInputStream();
 				DataInputStream di=new DataInputStream(is);
 				OutputStream os=s.getOutputStream();
 				DataOutputStream dos=new DataOutputStream(os);
-				//握手包数据流
+				int temp;
+				
+				//握手包数据流初始化
 				ByteArrayOutputStream b = new ByteArrayOutputStream();
 				DataOutputStream handshake = new DataOutputStream(b);
 				
+				//第一次握手
+				handshake.write(0x00);//先握手
+				main.writeVarInt(handshake,-1);//版本号未知
+				main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
+				handshake.writeBytes(main.part1[0]); //ip
+				handshake.writeShort(main.port); //port
+				main.writeVarInt(handshake, 1); //state (1 for handshake)
+				main.writeVarInt(dos, b.size()); //prepend size
+				dos.write(b.toByteArray()); //write handshake packet
+				dos.flush();
+				b = new ByteArrayOutputStream();
+				handshake = new DataOutputStream(b);
+				handshake.write(0x00);
+				main.writeVarInt(dos, b.size()); //prepend size
+				dos.write(b.toByteArray()); //write handshake packet
+				dos.flush();
+				main.data=main.data+main.readVarInt(di);//读包大小
+				byte[] a=new byte[main.readVarInt(di)];
+				di.readFully(a);
+				
+				//ping包
+				b = new ByteArrayOutputStream();
+				handshake = new DataOutputStream(b);
+				handshake.write(0x00);
+				handshake.writeLong(Long.MAX_VALUE);
+				main.writeVarInt(dos, b.size()); //prepend size
+				dos.write(b.toByteArray()); //write handshake packet
+				dos.flush();
+				main.data=main.data+main.readVarInt(di);
+				main.readVarInt(di);
+				di.readLong();
+				
+				
+				s=new Socket(main.part1[0],main.port);
+				//流准备
+				is=s.getInputStream();
+				di=new DataInputStream(is);
+				os=s.getOutputStream();
+				dos=new DataOutputStream(os);
+				//第二次握手
+				b = new ByteArrayOutputStream();
+				handshake = new DataOutputStream(b);
 				handshake.write(0x00);//先握手
 				main.writeVarInt(handshake,-1);//版本号未知
 				main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
 				handshake.writeBytes(main.part1[0]); //ip
 				handshake.writeShort(main.port); //port
 				main.writeVarInt(handshake, 2); //state (1 for handshake)
-				
 				main.writeVarInt(dos, b.size()); //prepend size
 				dos.write(b.toByteArray()); //write handshake packet
-				
 				dos.flush();
+				main.data=main.data+main.readVarInt(di);
+				if(main.readVarInt(di)==0x00) {
+					//System.out.println("[WARNING]你的ip可能已经被服务器察觉..");
+					di.close();
+					is.close();
+					dos.close();
+					os.close();
+					s.close();
+					continue;
+				}
+				//其他情况均为成功!
 				
-				//System.out.println("[DrinkThread]>handshake OK");
-				//System.out.println(di.readByte());
-				main.data=main.data+main.readVarInt(di);//读包大小,没了
-				//System.out.println("[DrinkThread]>"+main.data+"byte");
+				
+				//关闭流
 				di.close();
 				is.close();
 				dos.close();
@@ -96,10 +147,13 @@ class Thread1 implements Runnable {
 			}
 		} catch (Exception e) {
 			// TODO 自动生成的 catch 块
+			e.printStackTrace();
+			/*
 			Runnable thread1 = new Thread1(); 
 			Thread thread2 = new Thread(thread1);
 			thread2.start();//重生!
 			System.out.println("[WARNING]线程自爆,正在复活....");
+			*/
 		}
 	}
 }
@@ -129,7 +183,6 @@ class Thread4 implements Runnable {
 					System.out.println("[AnotherThread]>"+a+"kb");
 					continue;
 				}
-				
 			}
 		} catch (InterruptedException e) {
 			// TODO 自动生成的 catch 块
