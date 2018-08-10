@@ -147,13 +147,11 @@ class Thread1 implements Runnable {
 			}
 		} catch (Exception e) {
 			// TODO 自动生成的 catch 块
-			e.printStackTrace();
-			/*
+			//e.printStackTrace();
 			Runnable thread1 = new Thread1(); 
 			Thread thread2 = new Thread(thread1);
 			thread2.start();//重生!
 			System.out.println("[WARNING]线程自爆,正在复活....");
-			*/
 		}
 	}
 }
@@ -169,17 +167,17 @@ class Thread4 implements Runnable {
 					continue;
 				}
 				if(main.data>=1024) {
-					double a=main.data/1024;
+					double a=main.data/1024.0;
 					System.out.println("[AnotherThread]>"+a+"kb");
 					continue;
 				}
 				if(main.data>=1024*1024) {
-					double a=main.data/(1024*1024);
+					double a=main.data/(1024.0*1024.0);
 					System.out.println("[AnotherThread]>"+a+"mb");
 					continue;
 				}
 				if(main.data>=1024*1024*1024) {
-					double a=main.data/(1024*1024*1024);
+					double a=main.data/(1024.0*1024.0*1024.0);
 					System.out.println("[AnotherThread]>"+a+"kb");
 					continue;
 				}
