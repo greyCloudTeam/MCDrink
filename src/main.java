@@ -102,7 +102,9 @@ public class main {
 				os.close();
 				s1.close();
 		} catch (Exception e) {
-			System.out.println("探测失败！"+e.getMessage());
+			e.printStackTrace();
+			System.out.print("探测失败，请手动输入协议版本号:");
+			version=Integer.parseInt(s.nextLine());
 		}
 		
 		try {
@@ -190,6 +192,12 @@ class Thread1 implements Runnable {
 					
 				}
 				
+				di.close();
+				is.close();
+				dos.close();
+				os.close();
+				s.close();
+				
 				s=new Socket(main.part1[0],main.port);
 				//流准备
 				is=s.getInputStream();
@@ -200,7 +208,7 @@ class Thread1 implements Runnable {
 				main.writeVarInt(dos, main.login.length); //prepend size
 				dos.write(main.login); //write handshake packet
 				dos.flush();
-				main.data=main.data+main.readVarInt(di);
+				//main.data=main.data+main.readVarInt(di);<--老子不要这个数据了
 				di.close();
 				is.close();
 				dos.close();
